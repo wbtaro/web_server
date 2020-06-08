@@ -10,14 +10,15 @@ class ServerThread
     @server = server
   end
 
-  def response
+  def respond
     while true
       Thread.start(@server.accept) do |socket|
         path = parse_path_from_request(socket)
-        puts path + " is requested"
+        response_path = content_exist(path) ? path : NOT_FOUND_CONTENT
+        puts response_path + " is requested"
 
-        respond_header(socket, path)
-        respond_content(socket, path)
+        return_response_header(socket, response_path)
+        return_response_content(socket, response_path)
 
         socket.close
       end
@@ -47,12 +48,8 @@ class ServerThread
       path == "/" ? "/index.html" : path
     end
 
-    def respond_header(socket, path)
-      if content_exist(path)
-        socket.puts("HTTP/1.1 200 OK")
-      else
-        socket.puts("HTTP/1.1 404 Not Found")
-      end
+    def return_response_header(socket, path)
+      return_status(socket, path)
       socket.puts("Date: " + Time.now.getutc.strftime("%a, %d %m %Y %H:%M:%S") + " GMT")
       socket.puts("Server: modoki/0.1")
       socket.puts("Connection: close")
@@ -60,8 +57,7 @@ class ServerThread
       socket.puts("")
     end
 
-    def respond_content(socket, path)
-      path = NOT_FOUND_CONTENT if !content_exist(path)
+    def return_response_content(socket, path)
       File.open(BASE_PATH + path) do |file|
         content = file.read
         socket.write(content)
@@ -70,5 +66,13 @@ class ServerThread
 
     def content_exist(path)
       File.exist?(BASE_PATH + path)
+    end
+
+    def return_status(socket, path)
+      if content_exist(path)
+        socket.puts("HTTP/1.1 200 OK")
+      else
+        socket.puts("HTTP/1.1 404 Not Found")
+      end
     end
 end
